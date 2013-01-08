@@ -38,10 +38,13 @@ class HashEntry:
     def verify(self):
         return self.hash_file() == self.hash
 
-    def update(self):
-        self.hash = self.hash_file()
+    def update_attrs(self):
         s = stat(self.filename)
         self.size, self.mtime = s.st_size, s.st_mtime
+
+    def update(self):
+        self.update_attrs()
+        self.hash = self.hash_file()
 
 class HashDatabase:
     def __init__(self, path):

@@ -52,9 +52,11 @@ class HashDatabase:
         self.entries = {}
 
     def dump(self, filename):
+        # TODO make absolute in-memory filenames relative to self.path
         pass
 
     def load(self, filename):
+        # TODO make filenames relative to self.path absolute
         pass
 
     def import_hashes(self, filename):

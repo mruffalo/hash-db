@@ -5,17 +5,22 @@ import json
 from mmap import mmap, ACCESS_READ
 from os import stat, walk
 from os.path import abspath, dirname, isfile, join as ospj, normpath, relpath
-from subprocess import Popen, PIPE
 
-HASH_COMMAND = 'sha512sum'
 HASH_FILENAME = b'SHA512SUM'
 DB_FILENAME = 'hash_db.json'
 HASH_FUNCTION = hashlib.sha512
 
-ADDED_COLOR = '\033[01;32m'
-REMOVED_COLOR = '\033[01;34m'
-MODIFIED_COLOR = '\033[01;31m'
-NO_COLOR = '\033[00m'
+def read_hash_output(line):
+    pieces = line.strip().split(b'  ', 1)
+    return normpath(pieces[1]), pieces[0]
+
+def read_saved_hashes(hash_file):
+    hashes = {}
+    with open(hash_file, 'rb') as f:
+        for line in f:
+            filename, file_hash = read_hash_output(line)
+            hashes[filename] = file_hash
+    return hashes
 
 class HashEntry:
     def __init__(self, filename, size=None, mtime=None, hash=None):
@@ -39,14 +44,57 @@ class HashEntry:
         self.size, self.mtime = s.st_size, s.st_mtime
 
 class HashDatabase:
-    def __init__(self):
-        pass
+    def __init__(self, path):
+        self.path = path
+        self.entries = {}
 
     def dump(self, filename):
         pass
 
     def load(self, filename):
         pass
+
+    def import_hashes(self, filename):
+        """
+        Imports a hash file created by e.g. sha512sum, and populates
+        the database with this data. Examines each file to obtain the
+        size and mtime information.
+        """
+        pass
+
+    def update(self):
+        """
+        Walks the filesystem, adding and removing files from
+        the database as appropriate.
+        """
+        existing_files = set()
+        for dirpath, _, filenames in walk(self.path):
+            for filename in filenames:
+                abs_filename = abspath(filename)
+                existing_files.add(abs_filename)
+                if abs_filename in self.entries:
+                    entry = self.entries[abs_filename]
+                    st = stat(abs_filename)
+                    if entry.size != st.st_size or entry.mtime != st.st_mtime:
+                        entry.update()
+                else:
+                    entry = HashEntry(abs_filename)
+                    entry.update()
+                    self.entries[abs_filename] = entry
+        for deleted_file in self.entries.keys() - existing_files:
+            del self.entries[deleted_file]
+
+    def verify(self):
+        """
+        Calls each HashEntry's verify method to make sure that
+        nothing has changed on disk.
+
+        Yields each filename with different contents than was
+        recorded here.
+        """
+        for filename, entry in self.entries.items():
+            if not entry.verify():
+                yield filename
 
 def find_hash_db_r(path):
     """
@@ -68,28 +116,6 @@ def find_hash_db(path):
         raise FileNotFoundError(message.format(HASH_FILENAME.decode(), path))
     return filename
 
-def read_hash_output(line):
-    pieces = line.strip().split(b'  ', 1)
-    return normpath(pieces[1]), pieces[0]
-
-def read_saved_hashes(hash_file):
-    hashes = {}
-    with open(hash_file, 'rb') as f:
-        for line in f:
-            filename, file_hash = read_hash_output(line)
-            hashes[filename] = file_hash
-    return hashes
-
-def get_hashes(directory):
-    hashes = {}
-    for dirpath, _, filenames in walk(directory):
-        for filename in filenames:
-            if filename != HASH_FILENAME:
-                command = [HASH_COMMAND, ospj(dirpath, filename)]
-                output = Popen(command, stdout=PIPE).communicate()[0]
-                filename, file_hash = read_hash_output(output)
-                hashes[relpath(filename, directory)] = file_hash
-    return hashes
 
 def hash_diff(real: dict, saved: dict):
     """
@@ -105,34 +131,8 @@ def hash_diff(real: dict, saved: dict):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('directory', nargs='*', default=[b'.'],
-                        type=lambda s: s.encode())
+    parser.add_argument('command')
+    parser.add_argument('directory', default=b'.', type=lambda s: s.encode())
     args = parser.parse_args()
-    for path in args.directory:
-        sha512sum_file = ospj(path, HASH_FILENAME)
-        if not isfile(sha512sum_file):
-            raise EnvironmentError("Can't examine hashes in {}; no {} file".format(
-                path, HASH_FILENAME))
-        print('Reading hashes from {} ...'.format(sha512sum_file))
-        saved = read_saved_hashes(sha512sum_file)
-        print('done.')
-        print('Hashing files in {} ...'.format(path))
-        real = get_hashes(path)
-        print('done.')
-        print()
-        added, removed, modified = hash_diff(real, saved)
-        if added:
-            print(ADDED_COLOR + 'Added files:' + NO_COLOR)
-            for filename in sorted(added):
-                print(filename)
-            print()
-        if removed:
-            print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
-            for filename in sorted(removed):
-                print(filename)
-            print()
-        if modified:
-            print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
-            for filename in sorted(modified):
-                print(filename)
-            print()
+    db_file = find_hash_db(args.directory)
+    db = HashDatabase(dirname(db_file))

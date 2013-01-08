@@ -1,16 +1,72 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
-from os import walk
-from os.path import isfile, join as ospj, normpath, relpath
+import hashlib
+import json
+from mmap import mmap, ACCESS_READ
+from os import stat, walk
+from os.path import abspath, dirname, isfile, join as ospj, normpath, relpath
 from subprocess import Popen, PIPE
 
 HASH_COMMAND = 'sha512sum'
 HASH_FILENAME = b'SHA512SUM'
+DB_FILENAME = 'hash_db.json'
+HASH_FUNCTION = hashlib.sha512
 
 ADDED_COLOR = '\033[01;32m'
 REMOVED_COLOR = '\033[01;34m'
 MODIFIED_COLOR = '\033[01;31m'
 NO_COLOR = '\033[00m'
+
+class HashEntry:
+    def __init__(self, filename, size=None, mtime=None, hash=None):
+        # In memory, "filename" should be an absolute path
+        self.filename = filename
+        self.size = size
+        self.mtime = mtime
+        self.hash = hash
+
+    def hash_file(self):
+        with open(self.filename, 'rb') as f:
+            with mmap(f.fileno(), 0, access=ACCESS_READ) as m:
+                return HASH_FUNCTION(m)
+
+    def verify(self):
+        return self.hash_file() == self.hash
+
+    def update(self):
+        self.hash = self.hash_file()
+        s = stat(self.filename)
+        self.size, self.mtime = s.st_size, s.st_mtime
+
+class HashDatabase:
+    def __init__(self):
+        pass
+
+    def dump(self, filename):
+        pass
+
+    def load(self, filename):
+        pass
+
+def find_hash_db_r(path):
+    """
+    Searches the given path and all of its parent
+    directories to find a filename matching DB_FILENAME
+    """
+    abs_path = abspath(path)
+    cur_path = ospj(abs_path, DB_FILENAME)
+    if isfile(cur_path):
+        return cur_path
+    parent = dirname(abs_path)
+    if parent != abs_path:
+        return find_hash_db_r(parent)
+
+def find_hash_db(path):
+    filename = find_hash_db_r(path)
+    if filename is None:
+        message = "Couldn't find '{}' in '{}' or any parent directories"
+        raise FileNotFoundError(message.format(HASH_FILENAME.decode(), path))
+    return filename
 
 def read_hash_output(line):
     pieces = line.strip().split(b'  ', 1)

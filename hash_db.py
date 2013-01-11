@@ -56,7 +56,7 @@ def find_hash_db(path):
     filename = find_hash_db_r(path)
     if filename is None:
         message = "Couldn't find '{}' in '{}' or any parent directories"
-        raise FileNotFoundError(message.format(HASH_FILENAME, path))
+        raise FileNotFoundError(message.format(DB_FILENAME, path))
     return filename
 
 class HashEntry:

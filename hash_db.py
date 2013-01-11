@@ -52,12 +52,26 @@ class HashDatabase:
         self.entries = {}
 
     def dump(self, filename):
-        # TODO make absolute in-memory filenames relative to self.path
-        pass
+        data = {
+            relpath(entry.filename, self.path): {
+                'size': entry.size,
+                'mtime': entry.mtime,
+                'hash': entry.hash
+            }
+            for entry in self.entries.values()
+        }
+        with open(filename, 'w') as f:
+            json.dump(data, f)
 
     def load(self, filename):
-        # TODO make filenames relative to self.path absolute
-        pass
+        with open(filename) as f:
+            data = json.load(f)
+        for filename, entry_data in data:
+            entry = HashEntry(abspath(ospj(self.path, filename)))
+            entry.size = data['size']
+            entry.mtime = data['mtime']
+            entry.hash = data['hash']
+            self.entries[entry.filename] = entry
 
     def import_hashes(self, filename):
         """
@@ -65,7 +79,11 @@ class HashDatabase:
         the database with this data. Examines each file to obtain the
         size and mtime information.
         """
-        pass
+        hashes = read_saved_hashes(filename)
+        for filename, hash in hashes:
+            entry = HashEntry(abspath(ospj(self.path, filename)))
+            entry.update_attrs()
+            self.entries[entry.filename] = entry
 
     def update(self):
         """
@@ -120,19 +138,6 @@ def find_hash_db(path):
         message = "Couldn't find '{}' in '{}' or any parent directories"
         raise FileNotFoundError(message.format(HASH_FILENAME.decode(), path))
     return filename
-
-
-def hash_diff(real: dict, saved: dict):
-    """
-    real and saved are dicts that map filenames to SHA512 hash values
-    """
-    added = real.keys() - saved.keys()
-    removed = saved.keys() - real.keys()
-    modified = set()
-    for filename in real.keys() & saved.keys():
-        if real[filename] != saved[filename]:
-            modified.add(filename)
-    return added, removed, modified
 
 if __name__ == '__main__':
     parser = ArgumentParser()

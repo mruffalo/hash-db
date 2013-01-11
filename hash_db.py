@@ -232,8 +232,8 @@ if __name__ == '__main__':
             db.save()
     elif args.command == 'import':
         print('Importing hash database')
-        count = db.import_hashes(ospj(args.directory, HASH_FILENAME,
-                                      encoding=args.import_encoding))
+        count = db.import_hashes(ospj(args.directory, HASH_FILENAME),
+                                 encoding=args.import_encoding)
         print('Imported {} entries'.format(count))
         if not args.pretend:
             db.save()

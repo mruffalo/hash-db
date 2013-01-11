@@ -218,17 +218,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
     db = HashDatabase(args.directory)
     if args.command == 'init':
+        print('Initializing hash database')
         added, removed, modified = db.update()
         print_file_lists(added, removed, modified)
         if not args.pretend:
             db.save()
     elif args.command == 'update':
+        print('Updating hash database')
         db.load()
         added, removed, modified = db.update()
         print_file_lists(added, removed, modified)
         if not args.pretend:
             db.save()
     elif args.command == 'import':
+        print('Importing hash database')
         count = db.import_hashes(ospj(args.directory, HASH_FILENAME,
                                       encoding=args.import_encoding))
         print('Imported {} entries'.format(count))

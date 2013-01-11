@@ -5,6 +5,7 @@ import json
 from mmap import mmap, ACCESS_READ
 from os import stat, walk
 from os.path import abspath, dirname, isfile, join as ospj, normpath, relpath
+from sys import stdout
 
 HASH_FILENAME = 'SHA512SUM'
 DB_FILENAME = 'hash_db.json'
@@ -171,12 +172,17 @@ class HashDatabase:
         """
         modified = set()
         removed = set()
-        for filename, entry in self.entries.items():
+        count = len(self.entries)
+        i = -1
+        for i, (filename, entry) in enumerate(self.entries.items()):
             if entry.exists():
                 if not entry.verify():
                     modified.add(entry.filename)
             else:
                 removed.add(entry.filename)
+            stdout.write('\rChecked {} of {} files'.format(i, count))
+        if i >= 0:
+            print()
         return modified, removed
 
 if __name__ == '__main__':

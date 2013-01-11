@@ -23,9 +23,9 @@ def read_hash_output(line):
     pieces = line.strip().split('  ', 1)
     return normpath(pieces[1]), pieces[0]
 
-def read_saved_hashes(hash_file):
+def read_saved_hashes(hash_file, encoding):
     hashes = {}
-    with open(hash_file) as f:
+    with open(hash_file, encoding=encoding) as f:
         i = -1
         try:
             for i, line in enumerate(f):
@@ -118,13 +118,13 @@ class HashDatabase:
             entry.hash = entry_data['hash']
             self.entries[entry.filename] = entry
 
-    def import_hashes(self, filename):
+    def import_hashes(self, filename, encoding):
         """
         Imports a hash file created by e.g. sha512sum, and populates
         the database with this data. Examines each file to obtain the
         size and mtime information.
         """
-        hashes = read_saved_hashes(filename)
+        hashes = read_saved_hashes(filename, encoding)
         for filename, hash in hashes.items():
             entry = HashEntry(abspath(ospj(self.path, filename.replace('\\\\', '\\'))))
             entry.hash = hash
@@ -207,6 +207,8 @@ if __name__ == '__main__':
     parser.add_argument('command')
     parser.add_argument('directory', default='.')
     parser.add_argument('-n', '--pretend', action='store_true')
+    parser.add_argument('--import-encoding', default=None, help=('Encoding of the '
+        'file used for import. Default: utf-8.'))
     args = parser.parse_args()
     db = HashDatabase(args.directory)
     if args.command == 'init':
@@ -221,7 +223,8 @@ if __name__ == '__main__':
         if not args.pretend:
             db.save()
     elif args.command == 'import':
-        count = db.import_hashes(ospj(args.directory, HASH_FILENAME))
+        count = db.import_hashes(ospj(args.directory, HASH_FILENAME,
+                                      encoding=args.import_encoding))
         print('Imported {} entries'.format(count))
         if not args.pretend:
             db.save()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from argparse import ArgumentParser
 import hashlib
 import json
@@ -24,10 +24,15 @@ def read_hash_output(line):
 
 def read_saved_hashes(hash_file):
     hashes = {}
-    with open(hash_file, 'r') as f:
-        for line in f:
-            filename, file_hash = read_hash_output(line)
-            hashes[filename] = file_hash
+    with open(hash_file) as f:
+        i = -1
+        try:
+            for i, line in enumerate(f):
+                filename, file_hash = read_hash_output(line)
+                hashes[filename] = file_hash
+        except UnicodeDecodeError as e:
+            print('in {} line {}'.format(hash_file, i + 1))
+            raise
     return hashes
 
 def find_hash_db_r(path):
@@ -82,7 +87,10 @@ class HashEntry:
 
 class HashDatabase:
     def __init__(self, path):
-        self.path = path
+        try:
+            self.path = dirname(find_hash_db(path))
+        except FileNotFoundError:
+            self.path = path
         self.entries = {}
 
     def save(self):
@@ -91,7 +99,7 @@ class HashDatabase:
             relpath(entry.filename, self.path): {
                 'size': entry.size,
                 'mtime': entry.mtime,
-                'hash': entry.hash
+                'hash': entry.hash,
             }
             for entry in self.entries.values()
         }
@@ -117,10 +125,11 @@ class HashDatabase:
         """
         hashes = read_saved_hashes(filename)
         for filename, hash in hashes.items():
-            entry = HashEntry(abspath(ospj(self.path, filename)))
+            entry = HashEntry(abspath(ospj(self.path, filename.replace('\\\\', '\\'))))
             entry.hash = hash
             entry.update_attrs()
             self.entries[entry.filename] = entry
+        return len(self.entries)
 
     def update(self):
         """
@@ -202,7 +211,8 @@ if __name__ == '__main__':
         if not args.pretend:
             db.save()
     elif args.command == 'import':
-        db.import_hashes(ospj(args.directory, HASH_FILENAME))
+        count = db.import_hashes(ospj(args.directory, HASH_FILENAME))
+        print('Imported {} entries'.format(count))
         if not args.pretend:
             db.save()
     elif args.command == 'verify':

@@ -180,7 +180,7 @@ class HashDatabase:
                     modified.add(entry.filename)
             else:
                 removed.add(entry.filename)
-            stdout.write('\rChecked {} of {} files'.format(i, count))
+            stdout.write('\rChecked {} of {} files'.format(i + 1, count))
         if i >= 0:
             print()
         return modified, removed
@@ -193,7 +193,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
     db = HashDatabase(args.directory)
     if args.command == 'init':
-        db.update()
+        added, removed, modified = db.update()
+        if added:
+            print(ADDED_COLOR + 'Added files:' + NO_COLOR)
+            for filename in sorted(added):
+                print(filename)
+            print()
+        if removed:
+            print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
+            for filename in sorted(removed):
+                print(filename)
+            print()
+        if modified:
+            print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
+            for filename in sorted(modified):
+                print(filename)
+            print()
         if not args.pretend:
             db.save()
     elif args.command == 'update':

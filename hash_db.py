@@ -185,6 +185,23 @@ class HashDatabase:
             print()
         return modified, removed
 
+def print_file_lists(added, removed, modified):
+    if added:
+        print(ADDED_COLOR + 'Added files:' + NO_COLOR)
+        for filename in sorted(added):
+            print(filename)
+        print()
+    if removed:
+        print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
+        for filename in sorted(removed):
+            print(filename)
+        print()
+    if modified:
+        print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
+        for filename in sorted(modified):
+            print(filename)
+        print()
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('command')
@@ -194,41 +211,13 @@ if __name__ == '__main__':
     db = HashDatabase(args.directory)
     if args.command == 'init':
         added, removed, modified = db.update()
-        if added:
-            print(ADDED_COLOR + 'Added files:' + NO_COLOR)
-            for filename in sorted(added):
-                print(filename)
-            print()
-        if removed:
-            print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
-            for filename in sorted(removed):
-                print(filename)
-            print()
-        if modified:
-            print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
-            for filename in sorted(modified):
-                print(filename)
-            print()
+        print_file_lists(added, removed, modified)
         if not args.pretend:
             db.save()
     elif args.command == 'update':
         db.load()
         added, removed, modified = db.update()
-        if added:
-            print(ADDED_COLOR + 'Added files:' + NO_COLOR)
-            for filename in sorted(added):
-                print(filename)
-            print()
-        if removed:
-            print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
-            for filename in sorted(removed):
-                print(filename)
-            print()
-        if modified:
-            print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
-            for filename in sorted(modified):
-                print(filename)
-            print()
+        print_file_lists(added, removed, modified)
         if not args.pretend:
             db.save()
     elif args.command == 'import':
@@ -239,15 +228,6 @@ if __name__ == '__main__':
     elif args.command == 'verify':
         db.load()
         modified, removed = db.verify()
-        if removed:
-            print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
-            for filename in sorted(removed):
-                print(filename)
-            print()
-        if modified:
-            print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
-            for filename in sorted(modified):
-                print(filename)
-            print()
+        print_file_lists(None, removed, modified)
     else:
         print('Bad command: {}'.format(args.command))

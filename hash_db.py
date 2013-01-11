@@ -138,7 +138,7 @@ class HashDatabase:
             self.entries[entry.filename] = entry
         return len(self.entries)
 
-    def update(self):
+    def update(self, rehash=False):
         """
         Walks the filesystem, adding and removing files from
         the database as appropriate.
@@ -155,7 +155,7 @@ class HashDatabase:
                 if abs_filename in self.entries:
                     entry = self.entries[abs_filename]
                     st = stat(abs_filename)
-                    if entry.size != st.st_size or entry.mtime != st.st_mtime:
+                    if rehash or entry.size != st.st_size or entry.mtime != st.st_mtime:
                         modified.add(entry.filename)
                         entry.update()
                 else:
@@ -213,6 +213,9 @@ if __name__ == '__main__':
     parser.add_argument('command')
     parser.add_argument('directory', default='.')
     parser.add_argument('-n', '--pretend', action='store_true')
+    parser.add_argument('--rehash', action='store_true', help=('Force the "update" '
+        'command to rehash all files instead of omitting those with identical'
+        'size and modification time.'))
     parser.add_argument('--import-encoding', default=None, help=('Encoding of the '
         'file used for import. Default: utf-8.'))
     args = parser.parse_args()
@@ -226,7 +229,7 @@ if __name__ == '__main__':
     elif args.command == 'update':
         print('Updating hash database')
         db.load()
-        added, removed, modified = db.update()
+        added, removed, modified = db.update(rehash=args.rehash)
         print_file_lists(added, removed, modified)
         if not args.pretend:
             db.save()

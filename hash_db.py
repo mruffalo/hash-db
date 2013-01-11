@@ -19,6 +19,9 @@ REMOVED_COLOR = '\033[01;34m'
 MODIFIED_COLOR = '\033[01;31m'
 NO_COLOR = '\033[00m'
 
+# Not used yet. For future expansion.
+DATABASE_VERSION = 1
+
 def read_hash_output(line):
     pieces = line.strip().split('  ', 1)
     return normpath(pieces[1]), pieces[0]
@@ -97,12 +100,15 @@ class HashDatabase:
     def save(self):
         filename = ospj(self.path, DB_FILENAME)
         data = {
-            relpath(entry.filename, self.path): {
-                'size': entry.size,
-                'mtime': entry.mtime,
-                'hash': entry.hash,
+            'version': DATABASE_VERSION,
+            'files': {
+                relpath(entry.filename, self.path): {
+                    'size': entry.size,
+                    'mtime': entry.mtime,
+                    'hash': entry.hash,
+                }
+                for entry in self.entries.values()
             }
-            for entry in self.entries.values()
         }
         with open(filename, 'w') as f:
             json.dump(data, f)
@@ -111,7 +117,7 @@ class HashDatabase:
         filename = find_hash_db(self.path)
         with open(filename) as f:
             data = json.load(f)
-        for filename, entry_data in data.items():
+        for filename, entry_data in data['files'].items():
             entry = HashEntry(abspath(ospj(self.path, filename)))
             entry.size = entry_data['size']
             entry.mtime = entry_data['mtime']

@@ -214,7 +214,7 @@ if __name__ == '__main__':
     parser.add_argument('directory', default='.', nargs='?')
     parser.add_argument('-n', '--pretend', action='store_true')
     parser.add_argument('--rehash', action='store_true', help=('Force the "update" '
-        'command to rehash all files instead of omitting those with identical'
+        'command to rehash all files instead of omitting those with identical '
         'size and modification time.'))
     parser.add_argument('--import-encoding', default=None, help=('Encoding of the '
         'file used for import. Default: utf-8.'))

@@ -211,7 +211,7 @@ def print_file_lists(added, removed, modified):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('command')
-    parser.add_argument('directory', default='.')
+    parser.add_argument('directory', default='.', nargs='?')
     parser.add_argument('-n', '--pretend', action='store_true')
     parser.add_argument('--rehash', action='store_true', help=('Force the "update" '
         'command to rehash all files instead of omitting those with identical'

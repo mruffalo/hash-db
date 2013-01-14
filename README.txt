@@ -27,7 +27,7 @@ Commands:
   added files.
 * update
   Reads the hash database into memory and walks the directory tree to find any
-  noteworthy files. This inclues files that are not included in the hash
+  noteworthy files. This includes files that are not included in the hash
   database, files that have been removed since the last update, and files with
   a size or modification time that don't match the recorded values. Entries in
   the database are added, updated or modified as appropriate, and the new
@@ -39,12 +39,12 @@ Commands:
   each hash mismatch or file removal.
 * import
   Initializes a hash database from a SHA512SUM file. Walks the directory tree
-  to read the size and modifiation time of each file, but uses the saved hash
+  to read the size and modification time of each file, but uses the saved hash
   values instead of hashing each file on disk.
 
 == Requirements ==
 
-Python 3.3. I may eventally make this script run on 3.2 but probably not any
+Python 3.3. I may eventually make this script run on 3.2 but probably not any
 time soon.
 
 == Open Issues ==

@@ -179,8 +179,10 @@ class HashDatabase:
         modified = set()
         removed = set()
         count = len(self.entries)
+        # TODO: Track number of bytes hashed instead of number of files
+        # This will act as a more meaningful progress indicator
         i = -1
-        for i, (filename, entry) in enumerate(self.entries.items()):
+        for i, entry in enumerate(self.entries.values()):
             if entry.exists():
                 if not entry.verify():
                     modified.add(entry.filename)

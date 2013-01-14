@@ -60,6 +60,8 @@ time soon.
   SHA512SUM file, but it would be much nicer to read all SHA512SUM and
   hash_db files that are present. This would allow the easy and efficient
   creation of a "parent" hash database from those in subdirectories.
+* During the "verify" step, it would be nice to pretty-print the number of
+  bytes hashed instead of or in addition to the number of files.
 
 Addendum: One may notice that the operation and design of this hash database
 are strikingly similar to Git's index. This is not a coincidence.

@@ -5,7 +5,7 @@ import json
 from mmap import mmap, ACCESS_READ
 from os import stat, walk
 from os.path import abspath, dirname, isfile, join as ospj, normpath, relpath
-from sys import stdout
+from sys import stderr
 
 HASH_FILENAME = 'SHA512SUM'
 DB_FILENAME = 'hash_db.json'
@@ -168,7 +168,7 @@ class HashDatabase:
             del self.entries[deleted_file]
         return added, removed, modified
 
-    def verify(self):
+    def verify(self, verbose_failures=False):
         """
         Calls each HashEntry's verify method to make sure that
         nothing has changed on disk.
@@ -185,12 +185,16 @@ class HashDatabase:
         for i, entry in enumerate(self.entries.values()):
             if entry.exists():
                 if not entry.verify():
+                    if verbose_failures:
+                        stderr.write('\r{} failed hash verification\n')
                     modified.add(entry.filename)
             else:
                 removed.add(entry.filename)
-            stdout.write('\rChecked {} of {} files'.format(i + 1, count))
+                if verbose_failures:
+                    stderr.write('\r{} is missing\n')
+            stderr.write('\rChecked {} of {} files'.format(i + 1, count))
         if i >= 0:
-            print()
+            stderr.write('\n')
         return modified, removed
 
 def print_file_lists(added, removed, modified):
@@ -220,6 +224,9 @@ if __name__ == '__main__':
         'size and modification time.'))
     parser.add_argument('--import-encoding', default=None, help=('Encoding of the '
         'file used for import. Default: utf-8.'))
+    parser.add_argument('--verbose-failures', action='store_true', help=('If hash '
+        'verification fails, print filenames as soon as they are known in addition '
+        'to the post-hashing summary.'))
     args = parser.parse_args()
     db = HashDatabase(args.directory)
     if args.command == 'init':

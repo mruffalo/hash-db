@@ -3,8 +3,8 @@ from argparse import ArgumentParser
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
-from os import stat, walk
-from os.path import abspath, dirname, isfile, join as ospj, normpath, relpath
+from os import lstat, readlink, walk
+from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath
 from sys import stderr
 
 HASH_FILENAME = 'SHA512SUM'
@@ -19,8 +19,9 @@ REMOVED_COLOR = '\033[01;34m'
 MODIFIED_COLOR = '\033[01;31m'
 NO_COLOR = '\033[00m'
 
-# Not used yet. For future expansion.
-DATABASE_VERSION = 1
+# 1: 'version' field added
+# 2: entry 'type' field added; symlinks now treated correctly
+DATABASE_VERSION = 2
 
 def read_hash_output(line):
     pieces = line.strip().split('  ', 1)
@@ -60,20 +61,29 @@ def find_hash_db(path):
     return filename
 
 class HashEntry:
-    def __init__(self, filename, size=None, mtime=None, hash=None):
+    TYPE_FILE = 0
+    TYPE_SYMLINK = 1
+
+    def __init__(self, filename, size=None, mtime=None, hash=None, type=None):
         # In memory, "filename" should be an absolute path
         self.filename = filename
         self.size = size
         self.mtime = mtime
         self.hash = hash
+        self.type = type
 
     def hash_file(self):
-        if stat(self.filename).st_size > 0:
-            with open(self.filename, 'rb') as f:
-                with mmap(f.fileno(), 0, access=ACCESS_READ) as m:
-                    return HASH_FUNCTION(m).hexdigest()
-        else:
-            return EMPTY_FILE_HASH
+        if isfile(self.filename):
+            if lstat(self.filename).st_size > 0:
+                with open(self.filename, 'rb') as f:
+                    with mmap(f.fileno(), 0, access=ACCESS_READ) as m:
+                        return HASH_FUNCTION(m).hexdigest()
+            else:
+                return EMPTY_FILE_HASH
+        elif islink(self.filename):
+            # The link target will suffice as the "contents"
+            target = readlink(self.filename)
+            return HASH_FUNCTION(target.encode()).hexdigest()
 
     def exists(self):
         return isfile(self.filename)
@@ -82,12 +92,33 @@ class HashEntry:
         return self.hash_file() == self.hash
 
     def update_attrs(self):
-        s = stat(self.filename)
+        s = lstat(self.filename)
         self.size, self.mtime = s.st_size, s.st_mtime
+
+    def update_type(self):
+        if isfile(self.filename):
+            self.type = self.TYPE_FILE
+        elif islink(self.filename):
+            self.type = self.TYPE_SYMLINK
 
     def update(self):
         self.update_attrs()
+        self.update_type()
         self.hash = self.hash_file()
+
+def fix_symlinks(db):
+    for entry in db.entries.values():
+        if entry.type is None:
+            entry.update_type()
+            if entry.type == HashEntry.TYPE_SYMLINK:
+                entry.update()
+
+# Intended usage: at version i, you need to run all
+# upgrade functions in range(i, DATABASE_VERSION)
+db_upgrades = [
+    None,
+    fix_symlinks,
+]
 
 class HashDatabase:
     def __init__(self, path):
@@ -96,16 +127,18 @@ class HashDatabase:
         except FileNotFoundError:
             self.path = path
         self.entries = {}
+        self.version = DATABASE_VERSION
 
     def save(self):
         filename = ospj(self.path, DB_FILENAME)
         data = {
-            'version': DATABASE_VERSION,
+            'version': self.version,
             'files': {
                 relpath(entry.filename, self.path): {
                     'size': entry.size,
                     'mtime': entry.mtime,
                     'hash': entry.hash,
+                    'type': entry.type,
                 }
                 for entry in self.entries.values()
             }
@@ -117,12 +150,16 @@ class HashDatabase:
         filename = find_hash_db(self.path)
         with open(filename) as f:
             data = json.load(f)
+        self.version = data['version']
         for filename, entry_data in data['files'].items():
             entry = HashEntry(abspath(ospj(self.path, filename)))
-            entry.size = entry_data['size']
-            entry.mtime = entry_data['mtime']
-            entry.hash = entry_data['hash']
+            entry.size = entry_data.get('size')
+            entry.mtime = entry_data.get('mtime')
+            entry.hash = entry_data.get('hash')
+            entry.type = entry_data.get('type')
             self.entries[entry.filename] = entry
+        for i in range(self.version, DATABASE_VERSION):
+            db_upgrades[i](self)
 
     def import_hashes(self, filename, encoding):
         """
@@ -154,7 +191,7 @@ class HashDatabase:
                 existing_files.add(abs_filename)
                 if abs_filename in self.entries:
                     entry = self.entries[abs_filename]
-                    st = stat(abs_filename)
+                    st = lstat(abs_filename)
                     if rehash or entry.size != st.st_size or entry.mtime != st.st_mtime:
                         modified.add(entry.filename)
                         entry.update()

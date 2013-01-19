@@ -223,12 +223,12 @@ class HashDatabase:
             if entry.exists():
                 if not entry.verify():
                     if verbose_failures:
-                        stderr.write('\r{} failed hash verification\n')
+                        stderr.write('\r{} failed hash verification\n'.format(entry.filename))
                     modified.add(entry.filename)
             else:
                 removed.add(entry.filename)
                 if verbose_failures:
-                    stderr.write('\r{} is missing\n')
+                    stderr.write('\r{} is missing\n'.format(entry.filename))
             stderr.write('\rChecked {} of {} files'.format(i + 1, count))
         if i >= 0:
             stderr.write('\n')
@@ -288,7 +288,7 @@ if __name__ == '__main__':
             db.save()
     elif args.command == 'verify':
         db.load()
-        modified, removed = db.verify()
+        modified, removed = db.verify(args.verbose_failures)
         print_file_lists(None, removed, modified)
     else:
         print('Bad command: {}'.format(args.command))

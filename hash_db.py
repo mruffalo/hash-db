@@ -86,7 +86,7 @@ class HashEntry:
             return HASH_FUNCTION(target.encode()).hexdigest()
 
     def exists(self):
-        return isfile(self.filename)
+        return isfile(self.filename) or islink(self.filename)
 
     def verify(self):
         return self.hash_file() == self.hash

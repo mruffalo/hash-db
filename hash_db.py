@@ -160,6 +160,7 @@ class HashDatabase:
             self.entries[entry.filename] = entry
         for i in range(self.version, DATABASE_VERSION):
             db_upgrades[i](self)
+        self.version = DATABASE_VERSION
 
     def import_hashes(self, filename, encoding):
         """

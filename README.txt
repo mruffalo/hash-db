@@ -52,16 +52,18 @@ time soon.
 * All filenames MUST be valid UTF-8. This is a limitation of the current
   database storage format; Python's JSON module does not allow serializing byte
   strings. I intend to replace the storage format at some point (possibly with
-  a SQLite database), so I'll deal with this at that time.
-* The script does not handle symlinks very well. At the moment, the contents of
-  the link's target are hashed as if the link is a regular file. Broken
-  symlinks raise a FileNotFoundError and cause the script to fail.
+  a SQLite database), so I'll deal with this at that time. It's probably also a
+  good idea to use the new os.{fsencode, fsdecode} methods added in Python 3.2.
 * The import functionality is quite limited. Hashes are only read from one
   SHA512SUM file, but it would be much nicer to read all SHA512SUM and
   hash_db files that are present. This would allow the easy and efficient
   creation of a "parent" hash database from those in subdirectories.
 * During the "verify" step, it would be nice to pretty-print the number of
   bytes hashed instead of or in addition to the number of files.
+* The "update" command's "--pretend" argument is meant to show what would be
+  added or removed from the set of file hashes. This doesn't require actually
+  hashing anything, so it would make sense to skip this step to make this
+  faster. It might make more sense to create a separate "status" command.
 
 Addendum: One may notice that the operation and design of this hash database
 are strikingly similar to Git's index. This is not a coincidence.

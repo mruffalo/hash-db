@@ -167,6 +167,8 @@ class HashDatabase:
         Imports a hash file created by e.g. sha512sum, and populates
         the database with this data. Examines each file to obtain the
         size and mtime information.
+
+        Returns the number of file hashes imported.
         """
         hashes = read_saved_hashes(filename, encoding)
         for filename, hash in hashes.items():
@@ -180,6 +182,11 @@ class HashDatabase:
         """
         Walks the filesystem, adding and removing files from
         the database as appropriate.
+
+        Returns a 3-tuple of sets of filenames:
+        [0] added files
+        [1] removed files
+        [2] modified files
         """
         added = set()
         modified = set()
@@ -211,8 +218,9 @@ class HashDatabase:
         Calls each HashEntry's verify method to make sure that
         nothing has changed on disk.
 
-        Yields each filename with different contents than was
-        recorded here.
+        Returns a 2-tuple of sets of filenames:
+        [0] modified files
+        [1] removed files
         """
         modified = set()
         removed = set()

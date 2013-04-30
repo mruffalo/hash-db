@@ -199,10 +199,12 @@ class HashDatabase:
                 existing_files.add(abs_filename)
                 if abs_filename in self.entries:
                     entry = self.entries[abs_filename]
+                    old_hash = entry.hash
                     st = lstat(abs_filename)
                     if rehash or entry.size != st.st_size or entry.mtime != st.st_mtime:
-                        modified.add(entry.filename)
                         entry.update()
+                        if entry.hash != old_hash:
+                            modified.add(entry.filename)
                 else:
                     entry = HashEntry(abs_filename)
                     entry.update()

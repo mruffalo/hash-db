@@ -29,15 +29,14 @@ def read_hash_output(line):
 
 def read_saved_hashes(hash_file, encoding):
     hashes = {}
-    with open(hash_file, encoding=encoding) as f:
-        i = -1
-        try:
-            for i, line in enumerate(f):
-                filename, file_hash = read_hash_output(line)
+    with open(hash_file, 'rb') as f:
+        for line in f:
+            try:
+                filename, file_hash = read_hash_output(line.decode(encoding))
                 hashes[filename] = file_hash
-        except UnicodeDecodeError as e:
-            print('in {} line {}'.format(hash_file, i + 1))
-            raise
+            except UnicodeDecodeError as e:
+                print("Couldn't decode {!r}: ".format(line), end='')
+                print(e)
     return hashes
 
 def find_hash_db_r(path):
@@ -270,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('--rehash', action='store_true', help=('Force the "update" '
         'command to rehash all files instead of omitting those with identical '
         'size and modification time.'))
-    parser.add_argument('--import-encoding', default=None, help=('Encoding of the '
+    parser.add_argument('--import-encoding', default='utf-8', help=('Encoding of the '
         'file used for import. Default: utf-8.'))
     parser.add_argument('--verbose-failures', action='store_true', help=('If hash '
         'verification fails, print filenames as soon as they are known in addition '

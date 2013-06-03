@@ -3,8 +3,9 @@ from argparse import ArgumentParser
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
-from os import lstat, readlink, walk
+from os import lstat, readlink, stat_result, walk
 from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath
+from stat import S_ISLNK, S_ISREG
 from sys import stderr
 
 HASH_FILENAME = 'SHA512SUM'
@@ -105,6 +106,18 @@ class HashEntry:
         self.update_type()
         self.hash = self.hash_file()
 
+    def __eq__(self, other):
+        if isinstance(other, stat_result):
+            return (
+                self.size == other.st_size and
+                self.mtime == other.st_mtime and
+                (
+                    (self.type == self.TYPE_FILE and S_ISREG(other.st_mode))or
+                    (self.type == self.TYPE_SYMLINK and S_ISLNK(other.st_mode))
+                )
+            )
+        return super().__eq__(other)
+
 def fix_symlinks(db):
     for entry in db.entries.values():
         if entry.type is None:
@@ -200,7 +213,7 @@ class HashDatabase:
                     entry = self.entries[abs_filename]
                     old_hash = entry.hash
                     st = lstat(abs_filename)
-                    if rehash or entry.size != st.st_size or entry.mtime != st.st_mtime:
+                    if rehash or entry != st:
                         entry.update()
                         if entry.hash != old_hash:
                             modified.add(entry.filename)

@@ -289,9 +289,16 @@ def verify(db, pretend):
     modified, removed = db.verify(args.verbose_failures)
     print_file_lists(None, removed, modified)
 
+functions = {
+    'init': init,
+    'update': update,
+    'import': import_hashes,
+    'verify': verify,
+}
+
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('command')
+    parser.add_argument('command', choices=sorted(functions.keys()))
     parser.add_argument('directory', default='.', nargs='?')
     parser.add_argument('-n', '--pretend', action='store_true')
     parser.add_argument('--rehash', action='store_true', help=('Force the "update" '
@@ -304,13 +311,4 @@ if __name__ == '__main__':
         'to the post-hashing summary.'))
     args = parser.parse_args()
     db = HashDatabase(args.directory)
-    if args.command == 'init':
-        init(db, args.pretend)
-    elif args.command == 'update':
-        update(db, args.pretend)
-    elif args.command == 'import':
-        import_hashes(db, args.pretend)
-    elif args.command == 'verify':
-        verify(db, args.pretend)
-    else:
-        print('Bad command: {}'.format(args.command))
+    functions[args.command](db, args.pretend)

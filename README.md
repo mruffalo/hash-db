@@ -40,6 +40,15 @@ Commands
   database is written to disk.
   Also supports a "pretend" option ('-n' or '--pretend') that omits writing the
   new database to disk.
+* status
+
+  Reports added, modified, and removed files without performing any file
+  hashing.
+
+  Note that certain filesystems (vfat in particular) seem to report
+  spurious mtime changes, and 'status' necessarily will report such files.
+  'update --pretend' can be used to filter these false positives at the cost of
+  hashing each modified file.
 * verify
 
   Reads the hash database into memory and hashes each file on disk. Reports
@@ -70,10 +79,6 @@ Open Issues
   creation of a "parent" hash database from those in subdirectories.
 * During the "verify" step, it would be nice to pretty-print the number of
   bytes hashed instead of or in addition to the number of files.
-* The "update" command's "--pretend" argument is meant to show what would be
-  added or removed from the set of file hashes. This doesn't require actually
-  hashing anything, so it would make sense to skip this step to make this
-  faster. It might make more sense to create a separate "status" command.
 
 Addendum: One may notice that the operation and design of this hash database
 are strikingly similar to Git's index. This is not a coincidence.

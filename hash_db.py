@@ -118,6 +118,9 @@ class HashEntry:
             )
         return super().__eq__(other)
 
+    def __hash__(self):
+        return hash(self.filename)
+
 def fix_symlinks(db):
     for entry in db.entries.values():
         if entry.type is None:
@@ -190,15 +193,17 @@ class HashDatabase:
             self.entries[entry.filename] = entry
         return len(self.entries)
 
-    def update(self, rehash=False):
+    def _find_changes(self):
         """
-        Walks the filesystem, adding and removing files from
-        the database as appropriate.
+        Walks the filesystem. Identifies noteworthy files -- those
+        that were added, removed, or changed (size, mtime or type).
 
-        Returns a 3-tuple of sets of filenames:
+        Returns a 3-tuple of sets of HashEntry objects:
         [0] added files
         [1] removed files
         [2] modified files
+
+        self.entries is not modified; this method only reports changes.
         """
         added = set()
         modified = set()
@@ -208,24 +213,50 @@ class HashDatabase:
                 if filename == DB_FILENAME:
                     continue
                 abs_filename = abspath(ospj(dirpath, filename))
-                existing_files.add(abs_filename)
                 if abs_filename in self.entries:
                     entry = self.entries[abs_filename]
-                    old_hash = entry.hash
+                    existing_files.add(entry)
                     st = lstat(abs_filename)
-                    if rehash or entry != st:
-                        entry.update()
-                        if entry.hash != old_hash:
-                            modified.add(entry.filename)
+                    if entry != st:
+                        modified.add(entry)
                 else:
                     entry = HashEntry(abs_filename)
-                    entry.update()
-                    self.entries[abs_filename] = entry
-                    added.add(entry.filename)
-        removed = self.entries.keys() - existing_files
-        for deleted_file in removed:
-            del self.entries[deleted_file]
+                    entry.update_attrs()
+                    added.add(entry)
+        removed = set(self.entries.values()) - existing_files
         return added, removed, modified
+
+    def update(self):
+        """
+        Walks the filesystem, adding and removing files from
+        the database as appropriate.
+
+        Returns a 3-tuple of sets of filenames:
+        [0] added files
+        [1] removed files
+        [2] modified files
+        """
+        added, removed, modified = self._find_changes()
+        for entry in added:
+            entry.update()
+            self.entries[entry.filename] = entry
+        for entry in removed:
+            del self.entries[entry.filename]
+        # Entries will appear in 'modified' if the size, mtime or type
+        # change. I've seen a lot of spurious mtime mismatches on vfat
+        # filesystems (like on USB flash drives), so only report files
+        # as modified if the hash changes.
+        content_modified = set()
+        for entry in modified:
+            old_hash = entry.hash
+            entry.update()
+            if entry.hash != old_hash:
+                content_modified.add(entry)
+        return (
+            {entry.filename for entry in added},
+            {entry.filename for entry in removed},
+            {entry.filename for entry in content_modified}
+        )
 
     def verify(self, verbose_failures=False):
         """
@@ -284,7 +315,7 @@ def init(db, pretend):
 def update(db, pretend):
     print('Updating hash database')
     db.load()
-    added, removed, modified = db.update(rehash=args.rehash)
+    added, removed, modified = db.update()
     print_file_lists(added, removed, modified)
     if not pretend:
         db.save()
@@ -314,9 +345,6 @@ if __name__ == '__main__':
     parser.add_argument('command', choices=sorted(functions.keys()))
     parser.add_argument('directory', default='.', nargs='?')
     parser.add_argument('-n', '--pretend', action='store_true')
-    parser.add_argument('--rehash', action='store_true', help=('Force the "update" '
-        'command to rehash all files instead of omitting those with identical '
-        'size and modification time.'))
     parser.add_argument('--import-encoding', default='utf-8', help=('Encoding of the '
         'file used for import. Default: utf-8.'))
     parser.add_argument('--verbose-failures', action='store_true', help=('If hash '

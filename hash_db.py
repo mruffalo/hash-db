@@ -258,6 +258,14 @@ class HashDatabase:
             {entry.filename for entry in content_modified}
         )
 
+    def status(self):
+        added, removed, modified = self._find_changes()
+        return (
+            {entry.filename for entry in added},
+            {entry.filename for entry in removed},
+            {entry.filename for entry in modified}
+        )
+
     def verify(self, verbose_failures=False):
         """
         Calls each HashEntry's verify method to make sure that
@@ -320,6 +328,11 @@ def update(db, pretend):
     if not pretend:
         db.save()
 
+def status(db, pretend):
+    db.load()
+    added, removed, modified = db.status()
+    print_file_lists(added, removed, modified)
+
 def import_hashes(db, pretend):
     print('Importing hash database')
     count = db.import_hashes(ospj(args.directory, HASH_FILENAME),
@@ -336,6 +349,7 @@ def verify(db, pretend):
 functions = {
     'init': init,
     'update': update,
+    'status': status,
     'import': import_hashes,
     'verify': verify,
 }

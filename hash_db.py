@@ -261,6 +261,34 @@ def print_file_lists(added, removed, modified):
             print(filename)
         print()
 
+def init(db, pretend):
+    print('Initializing hash database')
+    added, removed, modified = db.update()
+    print_file_lists(added, removed, modified)
+    if not pretend:
+        db.save()
+
+def update(db, pretend):
+    print('Updating hash database')
+    db.load()
+    added, removed, modified = db.update(rehash=args.rehash)
+    print_file_lists(added, removed, modified)
+    if not pretend:
+        db.save()
+
+def import_hashes(db, pretend):
+    print('Importing hash database')
+    count = db.import_hashes(ospj(args.directory, HASH_FILENAME),
+                             encoding=args.import_encoding)
+    print('Imported {} entries'.format(count))
+    if not args.pretend:
+        db.save()
+
+def verify(db, pretend):
+    db.load()
+    modified, removed = db.verify(args.verbose_failures)
+    print_file_lists(None, removed, modified)
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('command')
@@ -277,28 +305,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     db = HashDatabase(args.directory)
     if args.command == 'init':
-        print('Initializing hash database')
-        added, removed, modified = db.update()
-        print_file_lists(added, removed, modified)
-        if not args.pretend:
-            db.save()
+        init(db, args.pretend)
     elif args.command == 'update':
-        print('Updating hash database')
-        db.load()
-        added, removed, modified = db.update(rehash=args.rehash)
-        print_file_lists(added, removed, modified)
-        if not args.pretend:
-            db.save()
+        update(db, args.pretend)
     elif args.command == 'import':
-        print('Importing hash database')
-        count = db.import_hashes(ospj(args.directory, HASH_FILENAME),
-                                 encoding=args.import_encoding)
-        print('Imported {} entries'.format(count))
-        if not args.pretend:
-            db.save()
+        import_hashes(db, args.pretend)
     elif args.command == 'verify':
-        db.load()
-        modified, removed = db.verify(args.verbose_failures)
-        print_file_lists(None, removed, modified)
+        verify(db, args.pretend)
     else:
         print('Bad command: {}'.format(args.command))

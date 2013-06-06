@@ -96,10 +96,10 @@ class HashEntry:
         self.size, self.mtime = s.st_size, s.st_mtime
 
     def update_type(self):
-        if isfile(self.filename):
-            self.type = self.TYPE_FILE
-        elif islink(self.filename):
+        if islink(self.filename):
             self.type = self.TYPE_SYMLINK
+        elif isfile(self.filename):
+            self.type = self.TYPE_FILE
 
     def update(self):
         self.update_attrs()

@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
-from os import lstat, readlink, stat_result, walk
+from os import fsdecode, fsencode, lstat, readlink, stat_result, walk
 from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath
 from stat import S_ISLNK, S_ISREG
 from sys import stderr
@@ -28,12 +28,12 @@ def read_hash_output(line):
     pieces = line.strip().split('  ', 1)
     return normpath(pieces[1]), pieces[0]
 
-def read_saved_hashes(hash_file, encoding):
+def read_saved_hashes(hash_file):
     hashes = {}
     with open(hash_file, 'rb') as f:
         for line in f:
             try:
-                filename, file_hash = read_hash_output(line.decode(encoding))
+                filename, file_hash = read_hash_output(fsdecode(line))
                 hashes[filename] = file_hash
             except UnicodeDecodeError as e:
                 print("Couldn't decode {!r}: ".format(line), end='')
@@ -83,7 +83,7 @@ class HashEntry:
         elif islink(self.filename):
             # The link target will suffice as the "contents"
             target = readlink(self.filename)
-            return HASH_FUNCTION(target.encode()).hexdigest()
+            return HASH_FUNCTION(fsencode(target)).hexdigest()
 
     def exists(self):
         return isfile(self.filename) or islink(self.filename)
@@ -177,7 +177,7 @@ class HashDatabase:
             db_upgrades[i](self)
         self.version = DATABASE_VERSION
 
-    def import_hashes(self, filename, encoding):
+    def import_hashes(self, filename):
         """
         Imports a hash file created by e.g. sha512sum, and populates
         the database with this data. Examines each file to obtain the
@@ -185,7 +185,7 @@ class HashDatabase:
 
         Returns the number of file hashes imported.
         """
-        hashes = read_saved_hashes(filename, encoding)
+        hashes = read_saved_hashes(filename)
         for filename, hash in hashes.items():
             entry = HashEntry(abspath(ospj(self.path, filename.replace('\\\\', '\\'))))
             entry.hash = hash
@@ -335,8 +335,7 @@ def status(db, pretend):
 
 def import_hashes(db, pretend):
     print('Importing hash database')
-    count = db.import_hashes(ospj(args.directory, HASH_FILENAME),
-                             encoding=args.import_encoding)
+    count = db.import_hashes(ospj(args.directory, HASH_FILENAME))
     print('Imported {} entries'.format(count))
     if not args.pretend:
         db.save()
@@ -359,8 +358,6 @@ if __name__ == '__main__':
     parser.add_argument('command', choices=sorted(functions.keys()))
     parser.add_argument('directory', default='.', nargs='?')
     parser.add_argument('-n', '--pretend', action='store_true')
-    parser.add_argument('--import-encoding', default='utf-8', help=('Encoding of the '
-        'file used for import. Default: utf-8.'))
     parser.add_argument('--verbose-failures', action='store_true', help=('If hash '
         'verification fails, print filenames as soon as they are known in addition '
         'to the post-hashing summary.'))

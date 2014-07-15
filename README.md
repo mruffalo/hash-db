@@ -117,8 +117,7 @@ Commands
 Requirements
 ============
 
-Python 3.3 or newer. I may eventually make this script run on 3.2 but probably
-not any time soon.
+Python 3.3 or newer.
 
 Open Issues
 ===========

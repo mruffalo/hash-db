@@ -371,6 +371,8 @@ def split(db, args):
     db.load()
     new_db = db.split(args.subdir)
     new_db.save()
+    print('Wrote {} hash entries to {}'.format(len(new_db.entries),
+        ospj(new_db.path, DB_FILENAME)))
 
 if __name__ == '__main__':
     parser = ArgumentParser()

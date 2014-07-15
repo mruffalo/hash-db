@@ -133,6 +133,11 @@ Open Issues
   the extent of filesystem corruption. It's easy to find what's missing after
   an `fsck`, but it would be much more helpful to hash everything that was
   dumped into `lost+found` to put these files back where they belong.
+* Sometimes it's very difficult to avoid mtime changes when copying data
+  between filesystems, and it would be nice if the `verify` command had an
+  `--update-mtimes` option. I originally intended the `verify` command to only
+  look at the hash database and not update it, but it makes a lot of sense to
+  have an easy way to reset the stored mtime if hash verification succeeds.
 
 <!---
 # vim: set tw=79:

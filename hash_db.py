@@ -3,8 +3,8 @@ from argparse import ArgumentParser
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
-from os import fsdecode, fsencode, lstat, readlink, stat_result, walk
-from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath
+from os import fsdecode, fsencode, getcwd, lstat, readlink, stat_result, walk
+from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath, sep as osp_sep
 import re
 from stat import S_ISLNK, S_ISREG
 from sys import stderr
@@ -61,6 +61,13 @@ def find_hash_db(path):
         message = "Couldn't find '{}' in '{}' or any parent directories"
         raise FileNotFoundError(message.format(DB_FILENAME, path))
     return filename
+
+def split_path(path):
+    """
+    :param path: Filesystem path
+    :return: path pieces
+    """
+    return path.strip(osp_sep).split(osp_sep)
 
 class HashEntry:
     TYPE_FILE = 0
@@ -162,6 +169,19 @@ class HashDatabase:
         }
         with open(filename, 'w') as f:
             json.dump(data, f)
+
+    def split(self, subdir):
+        if isfile(subdir):
+            raise NotADirectoryError(subdir)
+        copy = self.__class__(self.path)
+        copy.path = subdir
+        pieces = split_path(subdir)
+        prefix_len = len(pieces)
+        for path, item in self.entries.items():
+            entry_path_pieces = split_path(path)
+            if pieces[:prefix_len] == entry_path_pieces[:prefix_len]:
+                copy.entries[path] = item
+        return copy
 
     def load(self):
         filename = find_hash_db(self.path)
@@ -315,54 +335,70 @@ def print_file_lists(added, removed, modified):
         print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
         print_file_list(modified)
 
-def init(db, pretend):
+def init(db, args):
     print('Initializing hash database')
     added, removed, modified = db.update()
     print_file_lists(added, removed, modified)
-    if not pretend:
+    if not args.pretend:
         db.save()
 
-def update(db, pretend):
+def update(db, args):
     print('Updating hash database')
     db.load()
     added, removed, modified = db.update()
     print_file_lists(added, removed, modified)
-    if not pretend:
+    if not args.pretend:
         db.save()
 
-def status(db, pretend):
+def status(db, args):
     db.load()
     added, removed, modified = db.status()
     print_file_lists(added, removed, modified)
 
-def import_hashes(db, pretend):
+def import_hashes(db, args):
     print('Importing hash database')
     count = db.import_hashes(ospj(args.directory, HASH_FILENAME))
     print('Imported {} entries'.format(count))
     if not args.pretend:
         db.save()
 
-def verify(db, pretend):
+def verify(db, args):
     db.load()
     modified, removed = db.verify(args.verbose_failures)
     print_file_lists(None, removed, modified)
 
-functions = {
-    'init': init,
-    'update': update,
-    'status': status,
-    'import': import_hashes,
-    'verify': verify,
-}
+def split(db, args):
+    db.load()
+    new_db = db.split(args.subdir)
+    new_db.save()
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('command', choices=sorted(functions.keys()))
-    parser.add_argument('directory', default='.', nargs='?')
     parser.add_argument('-n', '--pretend', action='store_true')
-    parser.add_argument('--verbose-failures', action='store_true', help=('If hash '
+    subparsers = parser.add_subparsers()
+
+    parser_init = subparsers.add_parser('init')
+    parser_init.set_defaults(func=init)
+
+    parser_update = subparsers.add_parser('update')
+    parser_update.set_defaults(func=update)
+
+    parser_status = subparsers.add_parser('status')
+    parser_status.set_defaults(func=status)
+
+    parser_import = subparsers.add_parser('import')
+    parser_import.set_defaults(func=import_hashes)
+
+    parser_verify = subparsers.add_parser('verify')
+    parser_verify.add_argument('--verbose-failures', action='store_true', help=('If hash '
         'verification fails, print filenames as soon as they are known in addition '
         'to the post-hashing summary.'))
+    parser_verify.set_defaults(func=verify)
+
+    parser_split = subparsers.add_parser('split')
+    parser_split.add_argument('subdir', type=abspath)
+    parser_split.set_defaults(func=split)
+
     args = parser.parse_args()
-    db = HashDatabase(args.directory)
-    functions[args.command](db, args.pretend)
+    db = HashDatabase(getcwd())
+    args.func(db, args)

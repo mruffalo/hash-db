@@ -35,15 +35,13 @@ drives also had unreadable sectors that I wasn't aware of.
 
 Since no two drives were unreadable in the same place, I figured I could force
 the array online with different sets of three drives and copy whatever subset
-of data was readable with those three. This worked quite well until I did
-something remarkably stupid: I forced the array online with three drives that
-included the original one that failed. This disk wasn't present when I moved
-some data to different directories, so the ext4 filesystem wasn't in a
-consistent state. I hadn't actually changed the contents of any files while
-moving things around, so file content was okay as far as I could tell. The
-corruption was limited to filesystem metadata, so I had to manually figure out
-which directories had some of their contents dumped into `lost+found` after a
-`fsck`.
+of data was readable with those three. I didn't realize how remarkably stupid
+this was until I tried it. Since the failed drive wasn't present when I moved
+some data to different directories, the ext4 filesystem wasn't in a consistent
+state. I hadn't actually changed the contents of any files while moving things
+around, so file content was okay as far as I could tell. The corruption was
+limited to filesystem metadata, so I had to manually figure out which
+directories had some of their contents dumped into `lost+found` after a `fsck`.
 
 This script is useful for keeping an up-to-date manifest of a directory tree
 along with SHA512 hashes. Finding the extent of filesystem corruption is as
@@ -59,16 +57,21 @@ Usage
 
 The basic invocation of the script is of the form
 
-    hash_db.py [options] command [directory]
+    hash_db.py [global options] command [command-specific options]
 
-The directory defaults to `.` (current directory) but can be overridden.
+Global Options
+--------------
+
+* `--pretend`
+
+  Omits writing the (new or modified) database to disk.
 
 Commands
 --------
 
 * `init`
 
-  Creates a hash database in the specified directory. Walks the directory tree
+  Creates a hash database in the current directory. Walks the directory tree
   and adds all files to the database. After completion, prints the list of
   added files.
 * `update`
@@ -79,8 +82,6 @@ Commands
   a size or modification time that don't match the recorded values. Entries in
   the database are added, updated or modified as appropriate, and the new
   database is written to disk.
-  Also supports a `pretend` option (`-n` or `--pretend`) that omits writing the
-  new database to disk.
 * `status`
 
   Reports added, modified, and removed files without performing any file
@@ -94,24 +95,37 @@ Commands
 
   Reads the hash database into memory and hashes each file on disk. Reports
   each hash mismatch or file removal.
+
+  Options:
+  * `--verbose-failures`
+
+    If hash verification fails, print filenames as soon as they are known in
+    addition to the post-hashing summary.
 * `import`
 
   Initializes a hash database from a `SHA512SUM` file. Walks the directory tree
   to read the size and modification time of each file, but uses the saved hash
   values instead of hashing each file on disk.
+* `split`
+
+  Required argument: `subdir`.
+
+  Reads the hash database into memory, filters those entries that are
+  contained in `subdir`, and writes the reduced hash database to
+  `subdir/hash_db.json`.
 
 Requirements
 ============
 
-Python 3.3. I may eventually make this script run on 3.2 but probably not any
-time soon.
+Python 3.3 or newer. I may eventually make this script run on 3.2 but probably
+not any time soon.
 
 Open Issues
 ===========
 
 * The import functionality is quite limited. Hashes are only read from one
   `SHA512SUM` file, but it would be much nicer to read all `SHA512SUM` and
-  `hash\_db.json` files that are present. This would allow the easy and
+  `hash_db.json` files that are present. This would allow the easy and
   efficient creation of a "parent" hash database from those in subdirectories.
 * During the `verify` operation, it would be nice to pretty-print the number of
   bytes hashed instead of or in addition to the number of files.
@@ -119,9 +133,6 @@ Open Issues
   the extent of filesystem corruption. It's easy to find what's missing after
   an `fsck`, but it would be much more helpful to hash everything that was
   dumped into `lost+found` to put these files back where they belong.
-
-Addendum: One may notice that the operation and design of this hash database
-are strikingly similar to Git's index. This is not a coincidence.
 
 <!---
 # vim: set tw=79:

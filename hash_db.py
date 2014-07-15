@@ -5,6 +5,7 @@ import json
 from mmap import mmap, ACCESS_READ
 from os import fsdecode, fsencode, lstat, readlink, stat_result, walk
 from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath
+import re
 from stat import S_ISLNK, S_ISREG
 from sys import stderr
 
@@ -14,6 +15,7 @@ HASH_FUNCTION = hashlib.sha512
 # Mostly used for importing from saved hash files
 EMPTY_FILE_HASH = ('cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce'
                    '47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e')
+SURROGATE_ESCAPES = re.compile(r'([\udc80-\udcff])')
 
 ADDED_COLOR = '\033[01;32m'
 REMOVED_COLOR = '\033[01;34m'
@@ -296,22 +298,22 @@ class HashDatabase:
             stderr.write('\n')
         return modified, removed
 
+def print_file_list(files):
+    for filename in sorted(files):
+        printable_filename = SURROGATE_ESCAPES.sub('\ufffd', filename)
+        print(printable_filename)
+    print()
+
 def print_file_lists(added, removed, modified):
     if added:
         print(ADDED_COLOR + 'Added files:' + NO_COLOR)
-        for filename in sorted(added):
-            print(filename)
-        print()
+        print_file_list(added)
     if removed:
         print(REMOVED_COLOR + 'Removed files:' + NO_COLOR)
-        for filename in sorted(removed):
-            print(filename)
-        print()
+        print_file_list(removed)
     if modified:
         print(MODIFIED_COLOR + 'Modified files:' + NO_COLOR)
-        for filename in sorted(modified):
-            print(filename)
-        print()
+        print_file_list(modified)
 
 def init(db, pretend):
     print('Initializing hash database')

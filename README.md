@@ -109,11 +109,6 @@ time soon.
 Open Issues
 ===========
 
-* All filenames MUST be valid UTF-8. This is a limitation of the current
-  database storage format; Python's JSON module does not allow serializing byte
-  strings. I intend to replace the storage format at some point (possibly with
-  a SQLite database), so I'll deal with this at that time. It's probably also a
-  good idea to use the new os.{fsencode, fsdecode} methods added in Python 3.2.
 * The import functionality is quite limited. Hashes are only read from one
   `SHA512SUM` file, but it would be much nicer to read all `SHA512SUM` and
   `hash\_db.json` files that are present. This would allow the easy and

@@ -318,6 +318,23 @@ class HashDatabase:
             stderr.write('\n')
         return modified, removed
 
+    def export(self):
+        """
+        Exports the hash database in normal SHA512SUM format, usable as
+        input to `sha512sum -c`
+
+        Returns the number of entries exported.
+        """
+        hash_filename = ospj(self.path, HASH_FILENAME)
+        i = 0
+        with open(hash_filename, 'wb') as f:
+            for i, name in enumerate(sorted(self.entries), 1):
+                entry = self.entries[name]
+                filename = relpath(entry.filename, self.path)
+                line = entry.hash.encode('ascii') + b'  ' + fsencode(filename) + b'\n'
+                f.write(line)
+        return i
+
 def print_file_list(files):
     for filename in sorted(files):
         printable_filename = SURROGATE_ESCAPES.sub('\ufffd', filename)
@@ -374,6 +391,11 @@ def split(db, args):
     print('Wrote {} hash entries to {}'.format(len(new_db.entries),
         ospj(new_db.path, DB_FILENAME)))
 
+def export(db, args):
+    db.load()
+    count = db.export()
+    print('Exported {} entries to {}'.format(count, ospj(db.path, HASH_FILENAME)))
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-n', '--pretend', action='store_true')
@@ -400,6 +422,9 @@ if __name__ == '__main__':
     parser_split = subparsers.add_parser('split')
     parser_split.add_argument('subdir', type=abspath)
     parser_split.set_defaults(func=split)
+
+    parser_export = subparsers.add_parser('export')
+    parser_export.set_defaults(func=export)
 
     args = parser.parse_args()
     db = HashDatabase(getcwd())

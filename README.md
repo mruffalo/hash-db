@@ -88,7 +88,7 @@ Commands
   hashing.
 
   Note that certain filesystems (vfat in particular) seem to report
-  spurious mtime changes, and 'status' necessarily will report such files.
+  spurious mtime changes, and `status` necessarily will report such files.
   `update --pretend` can be used to filter these false positives at the cost of
   hashing each modified file.
 * `verify`
@@ -113,6 +113,10 @@ Commands
   Reads the hash database into memory, filters those entries that are
   contained in `subdir`, and writes the reduced hash database to
   `subdir/hash_db.json`.
+* `export`
+
+  Writes hash entries to a `SHA512SUM` file in the same directory as
+  `hash_db.json`.
 
 Requirements
 ============

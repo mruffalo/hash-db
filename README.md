@@ -101,6 +101,11 @@ Commands
 
     If hash verification fails, print filenames as soon as they are known in
     addition to the post-hashing summary.
+
+  * `--update-mtimes`
+
+    If hash verification of a file succeeds, update its stored modification
+    time to match that of the file on disk.
 * `import`
 
   Initializes a hash database from a `SHA512SUM` file. Walks the directory tree
@@ -136,11 +141,6 @@ Open Issues
   the extent of filesystem corruption. It's easy to find what's missing after
   an `fsck`, but it would be much more helpful to hash everything that was
   dumped into `lost+found` to put these files back where they belong.
-* Sometimes it's very difficult to avoid mtime changes when copying data
-  between filesystems, and it would be nice if the `verify` command had an
-  `--update-mtimes` option. I originally intended the `verify` command to only
-  look at the hash database and not update it, but it makes a lot of sense to
-  have an easy way to reset the stored mtime if hash verification succeeds.
 
 <!---
 # vim: set tw=79:

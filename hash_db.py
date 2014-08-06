@@ -288,7 +288,7 @@ class HashDatabase:
             {entry.filename for entry in modified}
         )
 
-    def verify(self, verbose_failures=False):
+    def verify(self, verbose_failures=False, update_mtimes=False):
         """
         Calls each HashEntry's verify method to make sure that
         nothing has changed on disk.
@@ -302,10 +302,12 @@ class HashDatabase:
         count = len(self.entries)
         # TODO: Track number of bytes hashed instead of number of files
         # This will act as a more meaningful progress indicator
-        i = -1
-        for i, entry in enumerate(self.entries.values()):
+        i = 0
+        for i, entry in enumerate(self.entries.values(), 1):
             if entry.exists():
-                if not entry.verify():
+                if entry.verify():
+                    entry.update_attrs()
+                else:
                     if verbose_failures:
                         stderr.write('\r{} failed hash verification\n'.format(entry.filename))
                     modified.add(entry.filename)
@@ -313,8 +315,8 @@ class HashDatabase:
                 removed.add(entry.filename)
                 if verbose_failures:
                     stderr.write('\r{} is missing\n'.format(entry.filename))
-            stderr.write('\rChecked {} of {} files'.format(i + 1, count))
-        if i >= 0:
+            stderr.write('\rChecked {} of {} files'.format(i, count))
+        if i:
             stderr.write('\n')
         return modified, removed
 
@@ -381,8 +383,10 @@ def import_hashes(db, args):
 
 def verify(db, args):
     db.load()
-    modified, removed = db.verify(args.verbose_failures)
+    modified, removed = db.verify(args.verbose_failures, args.update_mtimes)
     print_file_lists(None, removed, modified)
+    if not args.pretend:
+        db.save()
 
 def split(db, args):
     db.load()
@@ -417,6 +421,9 @@ if __name__ == '__main__':
     parser_verify.add_argument('--verbose-failures', action='store_true', help=('If hash '
         'verification fails, print filenames as soon as they are known in addition '
         'to the post-hashing summary.'))
+    parser_verify.add_argument('--update-mtimes', action='store_true', help=('If hash '
+        'verification of a file succeeds, update its stored modification time to match '
+        'that of the file on disk.'))
     parser_verify.set_defaults(func=verify)
 
     parser_split = subparsers.add_parser('split')

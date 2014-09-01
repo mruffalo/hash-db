@@ -385,7 +385,7 @@ def verify(db, args):
     db.load()
     modified, removed = db.verify(args.verbose_failures, args.update_mtimes)
     print_file_lists(None, removed, modified)
-    if not args.pretend:
+    if args.update_mtimes and not args.pretend:
         db.save()
 
 def split(db, args):

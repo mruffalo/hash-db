@@ -13,14 +13,15 @@ from stat import S_ISLNK, S_ISREG
 from sys import stderr
 
 HASH_FILENAME = 'SHA512SUM'
+DB_FILENAME = 'hash_db.json'
 # fnmatch patterns, specifically:
 IMPORT_FILENAME_PATTERNS = [
+    DB_FILENAME,
     HASH_FILENAME,
     HASH_FILENAME + '.asc',
     '*.sha512sum',
     '*.sha512sum.asc',
 ]
-DB_FILENAME = 'hash_db.json'
 HASH_FUNCTION = hashlib.sha512
 # Mostly used for importing from saved hash files
 EMPTY_FILE_HASH = ('cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce'
@@ -49,7 +50,7 @@ def read_saved_hashes(hash_file: Path) -> dict:
             hashes[file_path] = file_hash
     return hashes
 
-def find_hash_files(path: Path):
+def find_external_hash_files(path: Path):
     for dirpath_str, _, filenames in walk(str(path)):
         dirpath = Path(dirpath_str).absolute()
         for filename in filenames:
@@ -400,10 +401,18 @@ def status(db, args):
 
 def import_hashes(db, args):
     print('Importing hashes')
-    count = 0
-    for import_filename in find_hash_files(Path().absolute()):
-        count += db.import_hashes(import_filename)
-    print('Imported {} entries'.format(count))
+    overall_count = 0
+    for import_filename in find_external_hash_files(Path().absolute()):
+        if import_filename.name == DB_FILENAME:
+            temp_db = HashDatabase(import_filename.parent)
+            temp_db.load()
+            count = len(temp_db.entries)
+            db.entries.update(temp_db.entries)
+        else:
+            count = db.import_hashes(import_filename)
+        overall_count += count
+        print('Imported {} entries from {}'.format(count, import_filename))
+    print('\nImported {} total entries'.format(overall_count))
     if not args.pretend:
         db.save()
 

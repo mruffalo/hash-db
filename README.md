@@ -126,7 +126,7 @@ Commands
 Requirements
 ============
 
-Python 3.3 or newer.
+Python 3.4 or newer.
 
 Open Issues
 ===========

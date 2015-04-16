@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from argparse import ArgumentParser
+from enum import Enum
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
 from os import fsdecode, fsencode, getcwd, lstat, readlink, stat_result, walk
-from os.path import abspath, dirname, isfile, islink, join as ospj, normpath, relpath, sep as osp_sep
+from os.path import normpath
+from pathlib import Path
 import re
 from stat import S_ISLNK, S_ISREG
 from sys import stderr
@@ -30,51 +32,48 @@ def read_hash_output(line):
     pieces = line.strip().split('  ', 1)
     return normpath(pieces[1]), pieces[0]
 
-def read_saved_hashes(hash_file):
+def read_saved_hashes(hash_file: Path) -> dict:
     hashes = {}
-    with open(hash_file, 'rb') as f:
+    with hash_file.open('rb') as f:
         for line in f:
-            try:
-                filename, file_hash = read_hash_output(fsdecode(line))
-                hashes[filename] = file_hash
-            except UnicodeDecodeError as e:
-                print("Couldn't decode {!r}: ".format(line), end='')
-                print(e)
+            filename, file_hash = read_hash_output(fsdecode(line))
+            hashes[filename] = file_hash
     return hashes
 
-def find_hash_db_r(path):
+def find_hash_db_r(path: Path) -> Path:
     """
     Searches the given path and all of its parent
     directories to find a filename matching DB_FILENAME
     """
-    abs_path = abspath(path)
-    cur_path = ospj(abs_path, DB_FILENAME)
-    if isfile(cur_path):
+    abs_path = path.absolute()
+    cur_path = abs_path / DB_FILENAME
+    if cur_path.is_file():
         return cur_path
-    parent = dirname(abs_path)
+    parent = abs_path.parent
     if parent != abs_path:
         return find_hash_db_r(parent)
 
-def find_hash_db(path):
-    filename = find_hash_db_r(path)
-    if filename is None:
+def find_hash_db(path: Path):
+    hash_db_path = find_hash_db_r(path)
+    if hash_db_path is None:
         message = "Couldn't find '{}' in '{}' or any parent directories"
         raise FileNotFoundError(message.format(DB_FILENAME, path))
-    return filename
+    return hash_db_path
 
-def split_path(path):
+def split_path(path: Path):
     """
     :param path: Filesystem path
     :return: path pieces
     """
-    return path.strip(osp_sep).split(osp_sep)
+    return path.parts[1:]
 
-class HashEntry:
+class HashEntryType(Enum):
     TYPE_FILE = 0
     TYPE_SYMLINK = 1
 
+class HashEntry:
     def __init__(self, filename, size=None, mtime=None, hash=None, type=None):
-        # In memory, "filename" should be an absolute path
+        # In memory, "filename" should be an absolute Path
         self.filename = filename
         self.size = size
         self.mtime = mtime
@@ -82,33 +81,33 @@ class HashEntry:
         self.type = type
 
     def hash_file(self):
-        if isfile(self.filename):
-            if lstat(self.filename).st_size > 0:
-                with open(self.filename, 'rb') as f:
+        if self.filename.is_file():
+            if lstat(str(self.filename)).st_size > 0:
+                with self.filename.open('rb') as f:
                     with mmap(f.fileno(), 0, access=ACCESS_READ) as m:
                         return HASH_FUNCTION(m).hexdigest()
             else:
                 return EMPTY_FILE_HASH
-        elif islink(self.filename):
+        elif self.filename.is_symlink():
             # The link target will suffice as the "contents"
-            target = readlink(self.filename)
+            target = readlink(str(self.filename))
             return HASH_FUNCTION(fsencode(target)).hexdigest()
 
     def exists(self):
-        return isfile(self.filename) or islink(self.filename)
+        return self.filename.is_file() or self.filename.is_symlink()
 
     def verify(self):
         return self.hash_file() == self.hash
 
     def update_attrs(self):
-        s = lstat(self.filename)
+        s = lstat(str(self.filename))
         self.size, self.mtime = s.st_size, s.st_mtime
 
     def update_type(self):
-        if islink(self.filename):
-            self.type = self.TYPE_SYMLINK
-        elif isfile(self.filename):
-            self.type = self.TYPE_FILE
+        if self.filename.is_symlink():
+            self.type = HashEntryType.TYPE_SYMLINK
+        elif self.filename.is_file():
+            self.type = HashEntryType.TYPE_FILE
 
     def update(self):
         self.update_attrs()
@@ -121,8 +120,8 @@ class HashEntry:
                 self.size == other.st_size and
                 self.mtime == other.st_mtime and
                 (
-                    (self.type == self.TYPE_FILE and S_ISREG(other.st_mode))or
-                    (self.type == self.TYPE_SYMLINK and S_ISLNK(other.st_mode))
+                    (self.type == HashEntryType.TYPE_FILE and S_ISREG(other.st_mode))or
+                    (self.type == HashEntryType.TYPE_SYMLINK and S_ISLNK(other.st_mode))
                 )
             )
         return super().__eq__(other)
@@ -134,7 +133,7 @@ def fix_symlinks(db):
     for entry in db.entries.values():
         if entry.type is None:
             entry.update_type()
-            if entry.type == HashEntry.TYPE_SYMLINK:
+            if entry.type == HashEntryType.TYPE_SYMLINK:
                 entry.update()
 
 # Intended usage: at version i, you need to run all
@@ -145,34 +144,35 @@ db_upgrades = [
 ]
 
 class HashDatabase:
-    def __init__(self, path):
+    def __init__(self, path: Path):
         try:
-            self.path = dirname(find_hash_db(path))
+            self.path = find_hash_db(path).parent
         except FileNotFoundError:
             self.path = path
         self.entries = {}
         self.version = DATABASE_VERSION
 
     def save(self):
-        filename = ospj(self.path, DB_FILENAME)
+        filename = self.path / DB_FILENAME
         data = {
             'version': self.version,
             'files': {
-                relpath(entry.filename, self.path): {
+                str(entry.filename.relative_to(self.path)): {
                     'size': entry.size,
                     'mtime': entry.mtime,
                     'hash': entry.hash,
-                    'type': entry.type,
+                    'type': entry.type.value,
                 }
                 for entry in self.entries.values()
             }
         }
-        with open(filename, 'w') as f:
+        with filename.open('w') as f:
             json.dump(data, f)
 
-    def split(self, subdir):
-        if isfile(subdir):
+    def split(self, subdir: Path):
+        if subdir.is_file():
             raise NotADirectoryError(subdir)
+        subdir = subdir.absolute()
         copy = self.__class__(self.path)
         copy.path = subdir
         pieces = split_path(subdir)
@@ -185,15 +185,15 @@ class HashDatabase:
 
     def load(self):
         filename = find_hash_db(self.path)
-        with open(filename) as f:
+        with filename.open() as f:
             data = json.load(f)
         self.version = data['version']
         for filename, entry_data in data['files'].items():
-            entry = HashEntry(abspath(ospj(self.path, filename)))
+            entry = HashEntry((self.path / filename).absolute())
             entry.size = entry_data.get('size')
             entry.mtime = entry_data.get('mtime')
             entry.hash = entry_data.get('hash')
-            entry.type = entry_data.get('type')
+            entry.type = HashEntryType(entry_data.get('type'))
             self.entries[entry.filename] = entry
         for i in range(self.version, DATABASE_VERSION):
             db_upgrades[i](self)
@@ -209,7 +209,7 @@ class HashDatabase:
         """
         hashes = read_saved_hashes(filename)
         for filename, hash in hashes.items():
-            entry = HashEntry(abspath(ospj(self.path, filename.replace('\\\\', '\\'))))
+            entry = HashEntry(self.path / filename.replace('\\\\', '\\'))
             entry.hash = hash
             entry.update_attrs()
             self.entries[entry.filename] = entry
@@ -230,15 +230,16 @@ class HashDatabase:
         added = set()
         modified = set()
         existing_files = set()
-        for dirpath, _, filenames in walk(self.path):
+        for dirpath_str, _, filenames in walk(str(self.path)):
+            dirpath = Path(dirpath_str)
             for filename in filenames:
                 if filename == DB_FILENAME:
                     continue
-                abs_filename = abspath(ospj(dirpath, filename))
+                abs_filename = (dirpath / filename).absolute()
                 if abs_filename in self.entries:
                     entry = self.entries[abs_filename]
                     existing_files.add(entry)
-                    st = lstat(abs_filename)
+                    st = lstat(str(abs_filename))
                     if entry != st:
                         modified.add(entry)
                 else:
@@ -277,7 +278,7 @@ class HashDatabase:
         return (
             {entry.filename for entry in added},
             {entry.filename for entry in removed},
-            {entry.filename for entry in content_modified}
+            {entry.filename for entry in content_modified},
         )
 
     def status(self):
@@ -285,7 +286,7 @@ class HashDatabase:
         return (
             {entry.filename for entry in added},
             {entry.filename for entry in removed},
-            {entry.filename for entry in modified}
+            {entry.filename for entry in modified},
         )
 
     def verify(self, verbose_failures=False, update_mtimes=False):
@@ -327,19 +328,19 @@ class HashDatabase:
 
         Returns the number of entries exported.
         """
-        hash_filename = ospj(self.path, HASH_FILENAME)
+        hash_filename = self.path / HASH_FILENAME
         i = 0
-        with open(hash_filename, 'wb') as f:
+        with hash_filename.open('wb') as f:
             for i, name in enumerate(sorted(self.entries), 1):
                 entry = self.entries[name]
-                filename = relpath(entry.filename, self.path)
+                filename = str(entry.filename.relative_to(self.path))
                 line = entry.hash.encode('ascii') + b'  ' + fsencode(filename) + b'\n'
                 f.write(line)
         return i
 
 def print_file_list(files):
     for filename in sorted(files):
-        printable_filename = SURROGATE_ESCAPES.sub('\ufffd', filename)
+        printable_filename = SURROGATE_ESCAPES.sub('\ufffd', str(filename))
         print(printable_filename)
     print()
 
@@ -376,7 +377,7 @@ def status(db, args):
 
 def import_hashes(db, args):
     print('Importing hash database')
-    count = db.import_hashes(ospj(args.directory, HASH_FILENAME))
+    count = db.import_hashes(args.directory / HASH_FILENAME)
     print('Imported {} entries'.format(count))
     if not args.pretend:
         db.save()
@@ -392,13 +393,12 @@ def split(db, args):
     db.load()
     new_db = db.split(args.subdir)
     new_db.save()
-    print('Wrote {} hash entries to {}'.format(len(new_db.entries),
-        ospj(new_db.path, DB_FILENAME)))
+    print('Wrote {} hash entries to {}'.format(len(new_db.entries), new_db.path / DB_FILENAME))
 
 def export(db, args):
     db.load()
     count = db.export()
-    print('Exported {} entries to {}'.format(count, ospj(db.path, HASH_FILENAME)))
+    print('Exported {} entries to {}'.format(count, db.path / HASH_FILENAME))
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -427,12 +427,12 @@ if __name__ == '__main__':
     parser_verify.set_defaults(func=verify)
 
     parser_split = subparsers.add_parser('split')
-    parser_split.add_argument('subdir', type=abspath)
+    parser_split.add_argument('subdir', type=Path)
     parser_split.set_defaults(func=split)
 
     parser_export = subparsers.add_parser('export')
     parser_export.set_defaults(func=export)
 
     args = parser.parse_args()
-    db = HashDatabase(getcwd())
+    db = HashDatabase(Path(getcwd()))
     args.func(db, args)

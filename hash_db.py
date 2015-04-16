@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from argparse import ArgumentParser
 from enum import Enum
+from fnmatch import fnmatch
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
@@ -12,12 +13,20 @@ from stat import S_ISLNK, S_ISREG
 from sys import stderr
 
 HASH_FILENAME = 'SHA512SUM'
+# fnmatch patterns, specifically:
+IMPORT_FILENAME_PATTERNS = [
+    HASH_FILENAME,
+    HASH_FILENAME + '.asc',
+    '*.sha512sum',
+    '*.sha512sum.asc',
+]
 DB_FILENAME = 'hash_db.json'
 HASH_FUNCTION = hashlib.sha512
 # Mostly used for importing from saved hash files
 EMPTY_FILE_HASH = ('cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce'
                    '47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e')
 SURROGATE_ESCAPES = re.compile(r'([\udc80-\udcff])')
+SHA512_HASH_PATTERN = re.compile(r'^[0-9a-fA-F]{128}$')
 
 ADDED_COLOR = '\033[01;32m'
 REMOVED_COLOR = '\033[01;34m'
@@ -28,15 +37,14 @@ NO_COLOR = '\033[00m'
 # 2: entry 'type' field added; symlinks now treated correctly
 DATABASE_VERSION = 2
 
-def read_hash_output(line):
-    pieces = line.strip().split('  ', 1)
-    return normpath(pieces[1]), pieces[0]
-
 def read_saved_hashes(hash_file: Path) -> dict:
     hashes = {}
     with hash_file.open('rb') as f:
         for line in f:
-            filename, file_hash = read_hash_output(fsdecode(line))
+            pieces = fsdecode(line).strip().split('  ', 1)
+            if not SHA512_HASH_PATTERN.match(pieces[0]):
+                continue
+            filename, file_hash = normpath(pieces[1]), pieces[0]
             hashes[filename] = file_hash
     return hashes
 
@@ -212,6 +220,7 @@ class HashDatabase:
             entry = HashEntry(self.path / filename.replace('\\\\', '\\'))
             entry.hash = hash
             entry.update_attrs()
+            entry.update_type()
             self.entries[entry.filename] = entry
         return len(self.entries)
 
@@ -377,7 +386,7 @@ def status(db, args):
 
 def import_hashes(db, args):
     print('Importing hash database')
-    count = db.import_hashes(args.directory / HASH_FILENAME)
+    count = db.import_hashes(Path(HASH_FILENAME))
     print('Imported {} entries'.format(count))
     if not args.pretend:
         db.save()

@@ -17,11 +17,10 @@ stores additional file metadata and stores the hashes in JSON format.
 
 Motivation
 ==========
-A few months ago, my home file server had a Linux software RAID 5 array of four
-2TB Seagate Barracuda drives. I've had a great deal of trouble with these
-drives -- between my home array and one that I'm in charge of at my university,
-I've sent back **six** of them. The 3TB Barracudas seem to be okay so far,
-though.
+Long ago, my home file server had a Linux software RAID 5 array of four 2TB
+Seagate Barracuda drives. I've had a great deal of trouble with these drives --
+between my home array and one that I'm in charge of at my university, I've sent
+back **six** of them. The 3TB Barracudas seem to be okay so far, though.
 
 Every one of these drive failures has manifested as unreadable sectors -- the
 drives still powered on and identified themselves to the OS correctly. I found

@@ -122,7 +122,9 @@ class HashEntry:
     def update_type(self):
         if self.filename.is_symlink():
             self.type = HashEntryType.TYPE_SYMLINK
-        elif self.filename.is_file():
+        else:
+            # Treat it as a file even if it's missing. This only occurs when
+            # importing from saved hashes.
             self.type = HashEntryType.TYPE_FILE
 
     def update(self):
@@ -227,8 +229,12 @@ class HashDatabase:
         for file_path, hash in hashes.items():
             entry = HashEntry(file_path)
             entry.hash = hash
-            entry.update_attrs()
             entry.update_type()
+            try:
+                entry.update_attrs()
+            except FileNotFoundError:
+                # Not much else to do here.
+                pass
             self.entries[entry.filename] = entry
         return len(self.entries)
 
@@ -393,7 +399,7 @@ def status(db, args):
     print_file_lists(added, removed, modified)
 
 def import_hashes(db, args):
-    print('Importing hash database')
+    print('Importing hashes')
     count = 0
     for import_filename in find_hash_files(Path().absolute()):
         count += db.import_hashes(import_filename)

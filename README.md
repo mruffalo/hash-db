@@ -111,6 +111,7 @@ Commands
   Initializes a hash database from external hash files. Recognizes the
   following file patterns:
 
+  * `hash_db.json`
   * `SHA512SUM`
   * `SHA512SUM.asc`
   * `*.sha512sum`
@@ -118,7 +119,7 @@ Commands
 
   Finds all hash files matching those patterns, and reads the contents of each
   into a single hash database. The size and modification time of each file in
-  the hash database is also saved, but the saved hashes are stored as-is.
+  the hash database is read from disk, but the saved hashes are used as-is.
 * `split`
 
   Required argument: `subdir`.
@@ -139,10 +140,6 @@ Python 3.4 or newer.
 Open Issues
 ===========
 
-* The import functionality is quite limited. Hashes are only read from one
-  `SHA512SUM` file, but it would be much nicer to read all `SHA512SUM` and
-  `hash_db.json` files that are present. This would allow the easy and
-  efficient creation of a "parent" hash database from those in subdirectories.
 * During the `verify` operation, it would be nice to pretty-print the number of
   bytes hashed instead of or in addition to the number of files.
 * As mentioned above, my main motivation for writing this script was identifying

@@ -19,8 +19,9 @@ Motivation
 ==========
 Long ago, my home file server had a Linux software RAID 5 array of four 2TB
 Seagate Barracuda drives. I've had a great deal of trouble with these drives --
-between my home array and one that I'm in charge of at my university, I've sent
-back **six** of them. The 3TB Barracudas seem to be okay so far, though.
+between personal drives, an array that I'm in charge of at my university, and
+an array at my side job, I've experienced **17** drive failures. I've
+experienced problems with 1TB, 2TB, and 3TB Barracudas.
 
 Every one of these drive failures has manifested as unreadable sectors -- the
 drives still powered on and identified themselves to the OS correctly. I found
@@ -88,8 +89,8 @@ Commands
 
   Note that certain filesystems (vfat in particular) seem to report
   spurious mtime changes, and `status` necessarily will report such files.
-  `update --pretend` can be used to filter these false positives at the cost of
-  hashing each modified file.
+  `hash_db.py --pretend update` can be used to filter these false positives at
+  the cost of hashing each apparently-modified file.
 * `verify`
 
   Reads the hash database into memory and hashes each file on disk. Reports

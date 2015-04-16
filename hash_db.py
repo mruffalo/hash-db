@@ -312,7 +312,7 @@ class HashDatabase:
             {entry.filename for entry in modified},
         )
 
-    def verify(self, verbose_failures=False, update_mtimes=False):
+    def verify(self, verbose_failures=False):
         """
         Calls each HashEntry's verify method to make sure that
         nothing has changed on disk.
@@ -409,7 +409,7 @@ def import_hashes(db, args):
 
 def verify(db, args):
     db.load()
-    modified, removed = db.verify(args.verbose_failures, args.update_mtimes)
+    modified, removed = db.verify(args.verbose_failures)
     print_file_lists(None, removed, modified)
     if args.update_mtimes and not args.pretend:
         db.save()

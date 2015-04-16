@@ -108,9 +108,17 @@ Commands
     time to match that of the file on disk.
 * `import`
 
-  Initializes a hash database from a `SHA512SUM` file. Walks the directory tree
-  to read the size and modification time of each file, but uses the saved hash
-  values instead of hashing each file on disk.
+  Initializes a hash database from external hash files. Recognizes the
+  following file patterns:
+
+  * `SHA512SUM`
+  * `SHA512SUM.asc`
+  * `*.sha512sum`
+  * `*.sha512sum.asc`
+
+  Finds all hash files matching those patterns, and reads the contents of each
+  into a single hash database. The size and modification time of each file in
+  the hash database is also saved, but the saved hashes are stored as-is.
 * `split`
 
   Required argument: `subdir`.

@@ -184,8 +184,8 @@ class HashDatabase:
                 for entry in self.entries.values()
             }
         }
-        with filename.open('w') as f:
-            json.dump(data, f)
+        with filename.open('w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, sort_keys=True)
 
     def split(self, subdir: Path):
         if subdir.is_file():
@@ -203,7 +203,7 @@ class HashDatabase:
 
     def load(self):
         filename = find_hash_db(self.path)
-        with filename.open() as f:
+        with filename.open(encoding='utf-8') as f:
             data = json.load(f)
         self.version = data['version']
         for filename, entry_data in data['files'].items():

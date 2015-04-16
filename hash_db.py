@@ -44,9 +44,17 @@ def read_saved_hashes(hash_file: Path) -> dict:
             pieces = fsdecode(line).strip().split('  ', 1)
             if not SHA512_HASH_PATTERN.match(pieces[0]):
                 continue
-            filename, file_hash = normpath(pieces[1]), pieces[0]
-            hashes[filename] = file_hash
+            filename, file_hash = normpath(pieces[1]).replace('\\\\', '\\'), pieces[0]
+            file_path = (hash_file.parent / filename).absolute()
+            hashes[file_path] = file_hash
     return hashes
+
+def find_hash_files(path: Path):
+    for dirpath_str, _, filenames in walk(str(path)):
+        dirpath = Path(dirpath_str).absolute()
+        for filename in filenames:
+            if any(fnmatch(filename, pattern) for pattern in IMPORT_FILENAME_PATTERNS):
+                yield dirpath / filename
 
 def find_hash_db_r(path: Path) -> Path:
     """
@@ -216,8 +224,8 @@ class HashDatabase:
         Returns the number of file hashes imported.
         """
         hashes = read_saved_hashes(filename)
-        for filename, hash in hashes.items():
-            entry = HashEntry(self.path / filename.replace('\\\\', '\\'))
+        for file_path, hash in hashes.items():
+            entry = HashEntry(file_path)
             entry.hash = hash
             entry.update_attrs()
             entry.update_type()
@@ -386,7 +394,9 @@ def status(db, args):
 
 def import_hashes(db, args):
     print('Importing hash database')
-    count = db.import_hashes(Path(HASH_FILENAME))
+    count = 0
+    for import_filename in find_hash_files(Path().absolute()):
+        count += db.import_hashes(import_filename)
     print('Imported {} entries'.format(count))
     if not args.pretend:
         db.save()

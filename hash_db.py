@@ -227,7 +227,8 @@ class HashDatabase:
         Returns the number of file hashes imported.
         """
         hashes = read_saved_hashes(filename)
-        for file_path, hash in hashes.items():
+        i = 0
+        for i, (file_path, hash) in enumerate(hashes.items(), 1):
             entry = HashEntry(file_path)
             entry.hash = hash
             entry.update_type()
@@ -237,7 +238,7 @@ class HashDatabase:
                 # Not much else to do here.
                 pass
             self.entries[entry.filename] = entry
-        return len(self.entries)
+        return i
 
     def _find_changes(self):
         """

@@ -5,12 +5,17 @@ from fnmatch import fnmatch
 import hashlib
 import json
 from mmap import mmap, ACCESS_READ
-from os import fsdecode, fsencode, getcwd, lstat, readlink, stat_result, walk
+from os import fsdecode, fsencode, getcwd, lstat, readlink, stat_result
 from os.path import normpath
 from pathlib import Path
 import re
 from stat import S_ISLNK, S_ISREG
 from sys import stderr
+
+try:
+    from scandir import walk
+except ImportError:
+    from os import walk
 
 HASH_FILENAME = 'SHA512SUM'
 DB_FILENAME = 'hash_db.json'

@@ -26,6 +26,8 @@ IMPORT_FILENAME_PATTERNS = [
     HASH_FILENAME + '.asc',
     '*.sha512sum',
     '*.sha512sum.asc',
+    'DIGESTS',
+    'DIGESTS.asc'
 ]
 HASH_FUNCTION = hashlib.sha512
 # Mostly used for importing from saved hash files

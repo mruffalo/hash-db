@@ -112,6 +112,8 @@ Commands
   following file patterns:
 
   * `hash_db.json`
+  * `DIGESTS`
+  * `DIGESTS.asc`
   * `SHA512SUM`
   * `SHA512SUM.asc`
   * `*.sha512sum`
@@ -124,9 +126,9 @@ Commands
 
   Required argument: `subdir`.
 
-  Reads the hash database into memory, filters those entries that are
-  contained in `subdir`, and writes the reduced hash database to
-  `subdir/hash_db.json`.
+  Reads the hash database into memory, identifies entries that are contained in
+  `subdir`, and writes the reduced hash database to `subdir/hash_db.json` with
+  relative paths.
 * `export`
 
   Writes hash entries to a `SHA512SUM` file in the same directory as

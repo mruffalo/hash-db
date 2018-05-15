@@ -19,8 +19,8 @@ Motivation
 ==========
 Long ago, my home file server had a Linux software RAID 5 array of four 2TB
 Seagate Barracuda drives. I've had a great deal of trouble with these drives --
-between personal drives, an array that I'm in charge of at my university, and
-an array at my side job, I've experienced **17** drive failures. I've
+between personal drives, an array that I was in charge of at my old university,
+and an array at an old side job, I've experienced **17** drive failures. I've
 experienced problems with 1TB, 2TB, and 3TB Barracudas.
 
 Every one of these drive failures has manifested as unreadable sectors -- the
